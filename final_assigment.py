@@ -199,8 +199,8 @@ class CourseScheduler:
             insert_query = """
                 INSERT INTO tbl_final_assignment 
                 (fa_course_section, fa_program_section, fa_student_count, 
-                 fa_department, fa_room_code, fa_day_abbr, fa_start_time, fa_end_time)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                 fa_department, fa_room_code, fa_day_abbr, fa_start_time, fa_end_time, fa_course_year)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             values = (
                 section['cs_course_section'],
@@ -210,7 +210,8 @@ class CourseScheduler:
                 room['rdta_room_code'],
                 room['rdta_day_abbr'],
                 room['rdta_start_time'],
-                room['rdta_end_time']
+                room['rdta_end_time'],
+                section['cs_course_year']
             )
             
             self.cursor.execute(insert_query, values)

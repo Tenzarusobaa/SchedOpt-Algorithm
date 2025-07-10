@@ -61,23 +61,28 @@ def process_data(df):
     
     for _, row in df.iterrows():
         # Extract section (last character of fa_course_section)
-        section = row['fa_course_section'][-1]
+        section = str(row['fa_course_section'])[-1] if pd.notna(row['fa_course_section']) else ''
         
         # Extract course code (everything before the first dash)
-        course_code = row['fa_course_section'].split('-')[0]
+        course_code = str(row['fa_course_section']).split('-')[0] if pd.notna(row['fa_course_section']) else ''
         
         # Get year from fa_course_year
-        year = f"Year {row['fa_course_year']}"
+        year = f"Year {row['fa_course_year']}" if pd.notna(row['fa_course_year']) else 'Year 0'
         
-        # Get day and timeslot
-        day = row['fa_day_abbr']
-        timeslot = row['fa_final_timeslot']
-        room = row['fa_room_code']
-        department = row['fa_department']
+        # Get day and merged timeslot
+        day = str(row['fa_day_abbr']) if pd.notna(row['fa_day_abbr']) else ''
+        
+        # Merge start and end times into timeslot
+        start_time = str(row['fa_start_time']) if pd.notna(row['fa_start_time']) else ''
+        end_time = str(row['fa_end_time']) if pd.notna(row['fa_end_time']) else ''
+        timeslot = f"{start_time} - {end_time}" if start_time and end_time else (start_time or end_time or '')
+        
+        room = str(row['fa_room_code']) if pd.notna(row['fa_room_code']) else ''
+        department = str(row['fa_department']) if pd.notna(row['fa_department']) else ''
         
         # Get program sections and student count
-        program_sections = row['fa_program_section']
-        student_count = row['fa_student_count']
+        program_sections = str(row['fa_program_section']) if pd.notna(row['fa_program_section']) else ''
+        student_count = int(row['fa_student_count']) if pd.notna(row['fa_student_count']) else 0
         
         # Get the first program name for the Program column (just for display)
         first_program = program_sections.split(',')[0].strip() if program_sections else ''
@@ -87,7 +92,7 @@ def process_data(df):
         processed_data.append({
             'Department': department,
             'Program': program_name,
-            'Program Section': program_sections,  # Keep the full program sections string
+            'Program Section': program_sections,
             'Student Count': student_count,
             'Year': year,
             'Course Code': course_code,
@@ -216,7 +221,7 @@ def create_word_file(df):
     programs = sorted(df['Program'].unique())
     
     for program in programs:
-        # Add program header (centered, bold)
+        # Add program header (left aligned, bold)
         p = doc.add_paragraph()
         p.add_run(program).bold = True
         p.alignment = WD_ALIGN_PARAGRAPH.LEFT
@@ -226,7 +231,7 @@ def create_word_file(df):
         program_years = sorted(df[df['Program'] == program]['Year'].unique())
         
         for year in program_years:
-            # Add year header (centered, bold)
+            # Add year header (left aligned, bold)
             p = doc.add_paragraph()
             p.add_run(year).bold = True
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT
@@ -241,7 +246,7 @@ def create_word_file(df):
                 table = doc.add_table(rows=1, cols=5)
                 table.alignment = WD_TABLE_ALIGNMENT.CENTER
                 
-                # Remove all borders
+                # Remove all borders and set font
                 for row in table.rows:
                     for cell in row.cells:
                         for paragraph in cell.paragraphs:
@@ -266,21 +271,15 @@ def create_word_file(df):
                 # Add course data
                 for _, course in courses.iterrows():
                     row_cells = table.add_row().cells
-                    row_cells[0].text = course['Course Code']
-                    row_cells[1].text = course['Section']
-                    row_cells[2].text = course['Day']
-                    row_cells[3].text = course['Timeslot']
-                    row_cells[4].text = course['Room']
+                    row_cells[0].text = str(course['Course Code']) if pd.notna(course['Course Code']) else ''
+                    row_cells[1].text = str(course['Section']) if pd.notna(course['Section']) else ''
+                    row_cells[2].text = str(course['Day']) if pd.notna(course['Day']) else ''
+                    row_cells[3].text = str(course['Timeslot']) if pd.notna(course['Timeslot']) else ''
+                    row_cells[4].text = str(course['Room']) if pd.notna(course['Room']) else ''
                     
                     # Center align all cells
                     for cell in row_cells:
                         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-                
-                # Add space after table
-                #doc.add_paragraph()
-            
-            # Add space between year sections
-            #doc.add_paragraph()
     
     # Save the Word document
     word_file = "Final_Assignments_Sorted.docx"
