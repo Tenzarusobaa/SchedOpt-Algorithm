@@ -45,9 +45,10 @@ class CourseScheduler:
                 FROM tbl_course_section
                 ORDER BY 
                     CASE 
-                        WHEN cs_course_type = 'PATHFIT' THEN 1  -- Schedule PATHFIT first as they have more specific requirements
-                        WHEN cs_department = 'SLA' AND (cs_course_type = 'MSC' OR cs_course_type = 'ELEC') THEN 2  -- Schedule SLA MSC/ELEC courses next
-                        ELSE 3
+                        WHEN cs_course_type = 'PATHFIT' THEN 1  -- Schedule PATHFIT first
+                        WHEN cs_department = 'SLA' AND (cs_course_type = 'MSC' OR cs_course_type = 'ELEC' OR cs_course_type = 'MISC') THEN 2
+                        WHEN cs_department = 'SMA' AND (cs_course_type = 'MSC' OR cs_course_type = 'MISC' OR cs_course_type = 'ELEC' OR cs_course_type = 'CMP' OR cs_course_type = 'CAE') THEN 3
+                        ELSE 4
                     END,
                     cs_student_count DESC
             """
@@ -60,6 +61,7 @@ class CourseScheduler:
     def get_available_rooms(self, course_type, student_count, department=None, units=None):
         """Retrieve available rooms based on course type requirements"""
         try:
+            # Handle SLA department courses
             if department == 'SLA' and (course_type == 'MSC' or course_type == 'ELEC' or course_type == 'MISC'):
                 if units == 3:
                     query = """
@@ -94,6 +96,43 @@ class CourseScheduler:
                 
                 self.cursor.execute(query, (student_count,))
                 return self.cursor.fetchall()
+            
+            # Handle SMA department courses
+            elif department == 'SMA' and (course_type in ['MSC', 'MISC', 'ELEC', 'CMP', 'CAE']):
+                if units == 3:
+                    query = """
+                        SELECT rdta_room_code, rdta_day_abbr, rdta_start_time, rdta_end_time, rdta_room_capacity,
+                               rdta_day_type, rdta_room_type, rdta_room_function, rdta_ts_duration
+                        FROM tbl_room_day_time_assignment
+                        WHERE rdta_day_type = 'Pair' 
+                          AND rdta_ts_duration = 80
+                          AND rdta_room_type = 'LEC'
+                          AND rdta_room_function = 'LEC'
+                          AND (rdta_room_program_owner = 'NONE' OR rdta_room_program_owner IS NULL)
+                          AND (rdta_room_department_owner = 'NONE' OR rdta_room_department_owner IS NULL)
+                          AND rdta_room_capacity >= %s
+                        ORDER BY rdta_room_capacity
+                    """
+                elif units == 6:
+                    query = """
+                        SELECT rdta_room_code, rdta_day_abbr, rdta_start_time, rdta_end_time, rdta_room_capacity,
+                               rdta_day_type, rdta_room_type, rdta_room_function, rdta_ts_duration
+                        FROM tbl_room_day_time_assignment
+                        WHERE rdta_day_type = 'Pair' 
+                          AND rdta_ts_duration = 170
+                          AND rdta_room_type = 'LEC'
+                          AND rdta_room_function = 'LEC'
+                          AND (rdta_room_program_owner = 'NONE' OR rdta_room_program_owner IS NULL)
+                          AND (rdta_room_department_owner = 'NONE' OR rdta_room_department_owner IS NULL)
+                          AND rdta_room_capacity >= %s
+                        ORDER BY rdta_room_capacity
+                    """
+                else:
+                    return []
+                
+                self.cursor.execute(query, (student_count,))
+                return self.cursor.fetchall()
+            
             elif course_type in ['NGEC', 'GEELECT', 'NSTP', 'CC']:
                 # These all follow the same constraints as NGEC
                 query = """
